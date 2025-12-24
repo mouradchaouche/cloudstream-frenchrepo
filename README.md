@@ -1,0 +1,2 @@
+# cloudstream-frenchrepo
+cloudstream/frenchrepo
