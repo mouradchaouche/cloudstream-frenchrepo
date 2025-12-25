@@ -1,0 +1,164 @@
+[
+   {
+        "iconUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/img/wficon.png",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/",
+        "fileSize": 41360,
+        "status": 1,
+        "language": "fr",
+        "authors": [
+            "AMSC"
+        ],
+        "tvTypes": [
+            "TvSeries",
+            "Movie"
+        ],
+        "version": 5,
+        "internalName": "WiflixProvider",
+        "description": "WIFLIX, le site gr\u00e2ce auquel vous allez pouvoir regarder vos films et s\u00e9ries pr\u00e9f\u00e9r\u00e9es",
+        "url": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/WiflixProvider.cs3",
+        "name": "WiflixProvider"
+    },
+    
+    {
+        "iconUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/img/wficon.png",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/",
+        "fileSize": 41360,
+        "status": 1,
+        "language": "fr",
+        "authors": [
+            "AMSC"
+        ],
+        "tvTypes": [
+            "TvSeries",
+            "Movie"
+        ],
+        "version": 5,
+        "internalName": "FrenchAnime",
+        "description": "FrenchAnime, TOP ANIME EN STREAMING VOSTFR ET VF",
+        "url": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/FrenchAnime.cs3",
+        "name": "French Anime"
+    },
+    
+    {
+        "iconUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/img/fsicon.png",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/",
+        "fileSize": 21582,
+        "status": 1,
+        "language": "fr",
+        "authors": [
+            "AMSC"
+        ],
+        "tvTypes": [
+            "TvSeries",
+            "Movie"
+        ],
+        "version": 5,
+        "internalName": "FsMirrorLol",
+        "description": "FRENCH STREAM FsMirrorLol en plus d'\u00eatre un site efficace et plaisant dispose d'un contenu visuel diversifi\u00e9",
+        "url": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/FsMirrorLol.cs3",
+        "name": "FsMirrorLol"
+    },
+    
+    {
+        "iconUrl": "https://i.ibb.co/ygGWcC0/oha-letter-logo-design-on-black-background-oha-creative-initials-letter-logo-concept-oha-letter-desi.jpg",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build",
+        "fileSize": 15379,
+        "status": 1,
+        "language": "fr",
+        "authors": [
+            "Kingslayer"
+        ],
+        "tvTypes": [
+            "Live"
+        ],
+        "version": 1,
+        "internalName": "Ohatv",
+        "url": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/ohatv.cs3",
+        "name": "Ohatv Kingslayer"
+    },
+    
+    {
+        "iconUrl": "https://pbs.twimg.com/profile_images/1849214735427719168/T7sqRoBF_400x400.jpg",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/ycngmn/CuxPlug",
+        "fileSize": 15524,
+        "status": 1,
+        "language": "fr",
+        "authors": [
+            "ycngmn"
+        ],
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "version": 3,
+        "internalName": "FrenchStream CuxPlug",
+        "description": "French Stream est un site qui va r\u00e9cup\u00e8rer les films et s\u00e9ries sur des plateformes comme Disney+, Netflix, Amazon Prime Video, HBO, Apple TV , Wakanim, Viki... et vous les proposer Gratuitement!",
+        "url": "https://raw.githubusercontent.com/ycngmn/CuxPlug/builds/FrenchStream.cs3",
+        "name": "FrenchStream CuxPlug"
+    },
+    
+    {
+        "iconUrl": "https://cdn.statically.io/gh/Anime-Sama/IMG/img/autres/logo.png",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/ycngmn/CuxPlug",
+        "fileSize": 16501,
+        "status": 1,
+        "language": "fr",
+        "authors": [
+            "ycngmn"
+        ],
+        "tvTypes": [
+            "Anime"
+        ],
+        "version": 3,
+        "internalName": "AnimeSama",
+        "description": "Anime-Sama est un site de r\u00e9f\u00e9rencement et de catalogage, cr\u00e9\u00e9 par des passionn\u00e9s de l\u2019animation et du divertissement APAC.",
+        "url": "https://raw.githubusercontent.com/ycngmn/CuxPlug/builds/AnimeSama.cs3",
+        "name": "AnimeSama CuxPlug"
+    },
+    
+    {
+        "iconUrl": "https://raw.githubusercontent.com/phisher98/TVVVV/refs/heads/main/Coflix.png",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/phisher98/cloudstream-extensions-phisher",
+        "fileSize": 23013,
+        "status": 1,
+        "language": "fr",
+        "authors": [
+            "Phisher98"
+        ],
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "version": 5,
+        "internalName": "Coflix phisher98",
+        "description": "Movies,Series and Anime French Extension ",
+        "url": "https://raw.githubusercontent.com/phisher98/cloudstream-extensions-phisher/builds/Coflix.cs3",
+        "name": "Coflix Phisher98"
+    },
+    
+    {
+        "iconUrl": "https://huhu.to/favicon.ico",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/doGior/doGiorsHadEnough",
+        "fileSize": 22255,
+        "status": 1,
+        "authors": [
+            "doGior"
+        ],
+        "tvTypes": [
+            "Live"
+        ],
+        "version": 2,
+        "internalName": "Huhu",
+        "description": "TV channels from huhu.to",
+        "url": "https://raw.githubusercontent.com/doGior/doGiorsHadEnough/builds/Huhu.cs3",
+        "name": "Huhu doGior"
+    }
+]
