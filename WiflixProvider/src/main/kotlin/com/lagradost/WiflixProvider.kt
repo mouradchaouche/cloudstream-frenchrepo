@@ -16,7 +16,7 @@ import java.util.*
 
 class WiflixProvider : MainAPI() {
 
-    override var mainUrl = "https://flemmix.one" //"https://wiflix.al" // https://flemmix.one
+    override var mainUrl = "https://flemmix.bond" //"https://wiflix.al" // https://flemmix.one
     override var name = "01- \u2b50 Wiflix \u2b50"
     override val hasQuickSearch = false // recherche rapide (optionel, pas vraimet utile)
     override val hasMainPage = true // page d'accueil (optionel mais encoragé)
