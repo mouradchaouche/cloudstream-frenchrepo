@@ -1,5 +1,5 @@
 # cloudstream-frenchrepo
-cloudstream frenchrepo
+cloudstream french repo
 
 Plugins :
 FrenchAnime 
