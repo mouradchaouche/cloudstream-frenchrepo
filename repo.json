@@ -3,6 +3,7 @@
     "description": "Updating the Cloudstream French Provider.",
     "manifestVersion": 1,
     "pluginLists": [
-      "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/plugins.json"
+      "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/plugins.json"
     ]
   }
+

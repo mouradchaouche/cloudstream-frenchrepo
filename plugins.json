@@ -1,8 +1,8 @@
 [
    {
-        "iconUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/img/wficon.png",
+        "iconUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/img/wficon.png",
         "apiVersion": 1,
-        "repositoryUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/",
+        "repositoryUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/",
         "fileSize": 41360,
         "status": 1,
         "language": "fr",
@@ -16,14 +16,14 @@
         "version": 5,
         "internalName": "WiflixProvider",
         "description": "WIFLIX, le site gr\u00e2ce auquel vous allez pouvoir regarder vos films et s\u00e9ries pr\u00e9f\u00e9r\u00e9es",
-        "url": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/WiflixProvider.cs3",
+        "url": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/WiflixProvider.cs3",
         "name": "WiflixProvider"
     },
     
     {
-        "iconUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/img/wficon.png",
+        "iconUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/img/wficon.png",
         "apiVersion": 1,
-        "repositoryUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/",
+        "repositoryUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/",
         "fileSize": 41360,
         "status": 1,
         "language": "fr",
@@ -37,14 +37,14 @@
         "version": 5,
         "internalName": "FrenchAnime",
         "description": "FrenchAnime, TOP ANIME EN STREAMING VOSTFR ET VF",
-        "url": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/FrenchAnime.cs3",
+        "url": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/FrenchAnime.cs3",
         "name": "French Anime"
     },
     
     {
-        "iconUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/img/fsicon.png",
+        "iconUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/img/fsicon.png",
         "apiVersion": 1,
-        "repositoryUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/",
+        "repositoryUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/",
         "fileSize": 21582,
         "status": 1,
         "language": "fr",
@@ -58,14 +58,14 @@
         "version": 5,
         "internalName": "FsMirrorLol",
         "description": "FRENCH STREAM FsMirrorLol en plus d'\u00eatre un site efficace et plaisant dispose d'un contenu visuel diversifi\u00e9",
-        "url": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/FsMirrorLol.cs3",
+        "url": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/FsMirrorLol.cs3",
         "name": "FsMirrorLol"
     },
     
     {
         "iconUrl": "https://i.ibb.co/ygGWcC0/oha-letter-logo-design-on-black-background-oha-creative-initials-letter-logo-concept-oha-letter-desi.jpg",
         "apiVersion": 1,
-        "repositoryUrl": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build",
+        "repositoryUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build",
         "fileSize": 15379,
         "status": 1,
         "language": "fr",
@@ -77,7 +77,7 @@
         ],
         "version": 1,
         "internalName": "Ohatv",
-        "url": "https://github.com/mouradchaouche/cloudstream-frenchrepo/tree/main/Build/ohatv.cs3",
+        "url": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/ohatv.cs3",
         "name": "Ohatv Kingslayer"
     },
     
