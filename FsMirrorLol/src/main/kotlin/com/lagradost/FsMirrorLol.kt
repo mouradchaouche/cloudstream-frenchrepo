@@ -87,133 +87,110 @@ class FsMirrorLol : MainAPI() {
             }
         return allresultshome
     }
+data class loadLinkData(
+    val embedUrl: String,
+    val isVostFr: Boolean? = null,
+    val episodenumber: Int? = null
+)
 
-    private fun Element.takeEpisode(
-        url: String,
-    ): List<Episode> {
-        return this.select("a").map { a ->
-            val epNum =
-                Regex("""pisode[\s]+(\d+)""").find(a.text().lowercase())?.groupValues?.get(1)
-                    ?.toIntOrNull()
-            val epTitle = if (a.text().contains("Episode")) {
-                val type = if ("honey" in a.attr("id")) {
-                    "VF \uD83C\uDDE8\uD83C\uDDF5"
-                } else {
-                    "Vostfr \uD83D\uDCDC \uD83C\uDDEC\uD83C\uDDE7"
-                }
-                "Episode $type"
-            } else {
-                a.text()
-            }
+private fun Elements.takeEpisodeFromDivs(isVostFr: Boolean): List<Episode> {
+    return this.mapNotNull { div ->
+        val epNum = div.attr("data-ep").toIntOrNull() ?: return@mapNotNull null
+        if (epNum <= 0) return@mapNotNull null
 
-            // Utilisation de la factory newEpisode (remplacement de l'ancien Episode(...))
-            newEpisode(
-                loadLinkData(
-                    fixUrl(url),
-                    epTitle.contains("Vostfr"),
-                    epNum,
-                ).toJson()
-            ) {
-                this.name = epTitle
-                this.episode = epNum
-                this.posterUrl = a.selectFirst("div.fposter > dvd-cover > img.thumbnail")?.attr("src")
-            }
+        // 🔥 On prend TOUS les data-* valides
+        val embedUrl = div.attributes()
+            .asList()
+            .firstOrNull {
+                it.key.startsWith("data-")
+                        && it.key != "data-ep"
+                        && it.value.startsWith("http")
+            }?.value ?: return@mapNotNull null
+
+        val title =
+            if (isVostFr) "Episode $epNum Vostfr 📜 🇬🇧"
+            else "Episode $epNum VF 🇫🇷"
+
+        newEpisode(
+            loadLinkData(
+                embedUrl = fixUrl(embedUrl),
+                isVostFr = isVostFr,
+                episodenumber = epNum
+            ).toJson()
+        ) {
+            this.name = title
+            this.episode = epNum
         }
     }
+}
 
-    data class loadLinkData(
-        val embedUrl: String,
-        val isVostFr: Boolean? = null,
-        val episodenumber: Int? = null,
-    )
 
-    override suspend fun load(url: String): LoadResponse {
-        //// Affichage d'un element
-        val soup = app.get(url).document
-        var subEpisodes = listOf<Episode>()
-        var dubEpisodes = listOf<Episode>()
+//tagsListperso.add("(Dub\u2335)VF \uD83C\uDDE8\uD83C\uDDF5")
+//tagsListperso.add("(Sub\u2335)Vostfr \uD83D\uDCDC \uD83C\uDDEC\uD83C\uDDE7")
+override suspend fun load(url: String): LoadResponse {
+    val soup = app.get(url).document
+    var subEpisodes = listOf<Episode>()
+    var dubEpisodes = listOf<Episode>()
 
-        //Sélection du titre
-        var titleElement = soup.selectFirst("h1#s-title")!!
+    // Titre et description
+    val titleElement = soup.selectFirst("h1#s-title")!!
+    titleElement.selectFirst("p.desc-text")?.remove()
+    val title = titleElement.text()
 
-        //Suppression de la balise <p class="desc-text">
-        titleElement.selectFirst("p.desc-text")?.remove()
+    val descriptionElement = soup.selectFirst("div.fdesc")!!
+    descriptionElement.selectFirst("p.desc-text")?.remove()
+    val description = descriptionElement.text()
 
-        //Récupération du texte du titre après suppression
-        val title = titleElement.text().toString()
+    // ⚡ Poster conservé exactement comme toi
+    val poster = soup.selectFirst("a.short-poster.img-box.with-mask > img")?.attr("data-src")?.takeIf { it.isNotEmpty() }
+        ?: soup.selectFirst("a.short-poster.img-box.with-mask > img")?.attr("src")?.takeIf { it.isNotEmpty() }
+        ?: soup.selectFirst("div.fposter > dvd-cover > img.thumbnail")?.attr("src")?.takeIf { it.isNotEmpty() }
+        ?: soup.selectFirst("a.short-poster.img-box.with-mask > img")?.attr("data-original")?.takeIf { it.isNotEmpty() }
+        ?: soup.selectFirst("div.dvd-container > img.dvd-thumbnail")?.attr("src")?.takeIf { it.isNotEmpty() }
+        ?: soup.selectFirst("div.dvd-cover > img.thumbnail")?.attr("src")?.takeIf { it.isNotEmpty() }
 
-        //Ancien Val title
-        //val title = soup.selectFirst("h1#s-title")!!.text().toString()
-        //val isMovie = !url.contains("/serie/", ignoreCase = true)
-        val isMovie = soup.select("div.elink").isEmpty()
+    // ⚡ Sélection des divs VF et VOSTFR
+    val vfDivs = soup.select("#episodes-vf-data > div")
+    val vostfrDivs = soup.select("#episodes-vostfr-data > div")
 
-        val descriptionElement = soup.selectFirst("div.fdesc")!!
+    val isMovie = vfDivs.isEmpty() && vostfrDivs.isEmpty()
 
-        // Suppression de la balise <p> masquée
-        descriptionElement.selectFirst("p.desc-text")?.remove()
+    if (isMovie) {
+        val yearRegex = Regex("""ate de sortie\: (\d*)""")
+        val year = yearRegex.find(soup.text())?.groupValues?.get(1)
+        val tags = soup.select("ul.flist-col > li").getOrNull(1)?.select("a")?.mapNotNull { it?.text() }
+        return newMovieLoadResponse(title, url, TvType.Movie, loadLinkData(url)) {
+            this.posterUrl = poster
+            this.year = year?.toIntOrNull()
+            this.tags = tags
+            this.plot = description
+            addTrailer(soup.selectFirst("button#myBtn > a")?.attr("href"))
+        }
+    } else {
+        // ⚡ Priorité VF
+        dubEpisodes = vfDivs.takeEpisodeFromDivs(false)
+        subEpisodes = vostfrDivs.takeEpisodeFromDivs(true)
 
-        // Extraction du texte restant
-        val description = descriptionElement.text().toString()
+        val tagsListperso = mutableListOf<String>()
+        if (vfDivs.isNotEmpty()) tagsListperso.add("(Dub\u2335)VF 🇫🇷")
+        if (vostfrDivs.isNotEmpty()) tagsListperso.add("(Sub\u2335)Vostfr 📜 🇬🇧")
 
-        val poster = soup.selectFirst("a.short-poster.img-box.with-mask > img")?.attr("data-src")?.takeIf { it.isNotEmpty() }
-            ?: soup.selectFirst("a.short-poster.img-box.with-mask > img")?.attr("src")?.takeIf { it.isNotEmpty() }
-            ?: soup.selectFirst("div.fposter > dvd-cover > img.thumbnail")?.attr("src")?.takeIf { it.isNotEmpty() }
-            ?: soup.selectFirst("a.short-poster.img-box.with-mask > img")?.attr("data-original")?.takeIf { it.isNotEmpty() }
-            ?: soup.selectFirst("div.dvd-container > img.dvd-thumbnail")?.attr("src")?.takeIf { it.isNotEmpty() }
-            ?: soup.selectFirst("div.dvd-cover > img.thumbnail")?.attr("src")?.takeIf { it.isNotEmpty() }
+        val yearRegex = Regex("""Titre .* \/ (\d*)""")
+        val year = yearRegex.find(soup.text())?.groupValues?.get(1)
 
-        val listEpisode = soup.select("div.elink")
-        val tags = soup.select("ul.flist-col > li").getOrNull(1)
-        val posterMovie = soup.selectFirst("a.short-poster.img-box.with-mask > img.thumbnail")?.attr("src")
-        if (isMovie) {
-            val yearRegex = Regex("""ate de sortie\: (\d*)""")
-            val year = yearRegex.find(soup.text())?.groupValues?.get(1)
-            val tagsList = tags?.select("a")
-                ?.mapNotNull {   // all the tags like action, thriller ...; unused variable
-                    it?.text()
-                }
-            return newMovieLoadResponse(title, url, TvType.Movie, loadLinkData(url)) {
-                this.posterUrl = poster
-                this.year = year?.toIntOrNull()
-                this.tags = tagsList
-                this.plot = description
-                //this.rating = rating
-                addTrailer(soup.selectFirst("button#myBtn > a")?.attr("href"))
-            }
-        } else {
-            val vfContainer = listEpisode.firstOrNull { it.selectFirst("a")?.attr("id")?.startsWith("honey") ?: false }
-            val vostfrContainer =  listEpisode.firstOrNull { it.selectFirst("a")?.attr("id")?.startsWith("yoyo") ?: false }
+        return newAnimeLoadResponse(title, url, TvType.TvSeries) {
+            this.posterUrl = poster
+            this.plot = description
+            this.year = year?.toInt()
+            this.tags = tagsListperso
+            addTrailer(soup.selectFirst("button#myBtn > a")?.attr("href"))
 
-            subEpisodes = vostfrContainer?.takeEpisode(url) ?: emptyList()
-            dubEpisodes = vfContainer?.takeEpisode(url) ?: emptyList()
-
-            val tagsListperso = mutableListOf<String>()
-
-            if (listEpisode.any { it.selectFirst("a")?.attr("id")?.startsWith("honey") == true }) {
-                tagsListperso.add("(Dub\u2335)VF \uD83C\uDDE8\uD83C\uDDF5")
-            }
-            if (listEpisode.any { it.selectFirst("a")?.attr("id")?.startsWith("yoyo") == true }) {
-                tagsListperso.add("(Sub\u2335)Vostfr \uD83D\uDCDC \uD83C\uDDEC\uD83C\uDDE7")
-            }
-
-            val yearRegex = Regex("""Titre .* \/ (\d*)""")
-            val year = yearRegex.find(soup.text())?.groupValues?.get(1)
-
-            return newAnimeLoadResponse(
-                title,
-                url,
-                TvType.TvSeries,
-            ) {
-                this.posterUrl = poster
-                this.plot = description
-                this.year = year?.toInt()
-                this.tags = tagsListperso
-                addTrailer(soup.selectFirst("button#myBtn > a")?.attr("href"))
-                if (subEpisodes.isNotEmpty()) addEpisodes(DubStatus.Subbed, subEpisodes)
-                if (dubEpisodes.isNotEmpty()) addEpisodes(DubStatus.Dubbed, dubEpisodes)
-            }
+            if (dubEpisodes.isNotEmpty()) addEpisodes(DubStatus.Dubbed, dubEpisodes)
+            if (subEpisodes.isNotEmpty()) addEpisodes(DubStatus.Subbed, subEpisodes)
         }
     }
+}
+
 
     fun translate(
         // the website has weird naming of series for episode 2 and 1 and original version content
@@ -231,106 +208,29 @@ class FsMirrorLol : MainAPI() {
         }
     }
 
-    override suspend fun loadLinks( // TODO FIX *Garbage* data transmission betwenn function
-        data: String,
-        isCasting: Boolean,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit,
-    ): Boolean {
-        val parsedData =  tryParseJson<loadLinkData>(data)
-        val url = parsedData?.embedUrl ?: return false
-        val servers =
-            if (parsedData.episodenumber != null) // It's a serie:
-            {
-                val isvostfr = parsedData.isVostFr == true
-                val wantedEpisode =
-                    if (parsedData.episodenumber.toString() == "2") { // the episode number 2 has id of ABCDE, don't ask any question
-                        "ABCDE"
-                    } else {
-                        "episode" + parsedData.episodenumber.toString()
-                    }
+   override suspend fun loadLinks(
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+): Boolean {
 
-                val soup = app.get(fixUrl(url)).document
-                val div =
-                    if (wantedEpisode == "episode1") {
-                        "> div.tabs-sel "  // this element is added when the wanted episode is one (the place changes in the document)
-                    } else {
-                        ""
-                    }
-                val serversvf =// French version servers
-                    soup.select("div#$wantedEpisode > div.selink > ul.btnss $div> li")
-                        .mapNotNull { li ->  // list of all french version servers
-                            val serverUrl = fixUrl(li.selectFirst("a")!!.attr("href"))
-                            if (serverUrl.isNotBlank()) {
-                                if (li.text().replace("&nbsp;", "").replace(" ", "").isNotBlank()) {
-                                    Pair(li.text().replace(" ", ""), fixUrl(serverUrl))
-                                } else {
-                                    null
-                                }
-                            } else {
-                                null
-                            }
-                        }
+    val parsedData = tryParseJson<loadLinkData>(data) ?: return false
+    val url = fixUrl(parsedData.embedUrl)
 
-                val translated = translate(parsedData.episodenumber.toString(), serversvf.isNotEmpty())
-                val serversvo =  // Original version servers
-                    soup.select("div#$translated > div.selink > ul.btnss $div> li")
-                        .mapNotNull { li ->
-                            val serverUrl = fixUrlNull(li.selectFirst("a")?.attr("href"))
-                            if (!serverUrl.isNullOrEmpty()) {
-                                if (li.text().replace("&nbsp;", "").isNotBlank()) {
-                                    Pair(li.text().replace(" ", ""), fixUrl(serverUrl))
-                                } else {
-                                    null
-                                }
-                            } else {
-                                null
-                            }
-                        }
-                if (isvostfr) {
-                    serversvo
-                } else {
-                    serversvf
-                }
-            } else {  // it's a movie
-                val movieServers = app.get(fixUrl(url)).document.select("div#player-options > button.player-option").mapNotNull { button ->
-                    val playerName = button.attr("data-player") // Nom du player (ex: Dood.Stream, Filmoon, etc.)
-                    val defaultUrl = button.attr("data-url-default") // URL par défaut
+    // ⚡ Cas séries ET films : on envoie DIRECTEMENT à l'extractor
+    loadExtractor(
+        url,
+        mainUrl,
+        subtitleCallback,
+        callback
+    )
 
-                    // Extraire les versions disponibles
-                    val versions = button.select("div.version-dropdown > div.version-option").mapNotNull { version ->
-                        val versionName = version.attr("data-version") // Nom de la version (ex: VOSTFR, VFQ, VFF)
-                        val versionUrl = version.attr("data-url") // URL de la version
-                        Pair("$playerName - $versionName", fixUrl(versionUrl))
-                    }
+    return true
+}
 
-                    // Ajouter l'URL par défaut comme une option supplémentaire
-                    if (defaultUrl.isNotBlank()) {
-                        versions + Pair("$playerName - Default", fixUrl(defaultUrl))
-                    } else {
-                        versions
-                    }
-                }.flatten()
 
-                movieServers
-            }
-        servers.apmap {
-            val urlplayer = it.second
 
-            val playerUrl = if (urlplayer.contains("opsktp.com") || urlplayer.contains("flixeo.xyz")) {
-                val header = app.get(
-                    "https" + it.second.split("https")[1],
-                    allowRedirects = false
-                ).headers
-                header["location"].toString()
-            } else {
-                urlplayer
-            }.replace("https://doodstream.com", "https://dood.yt")
-            loadExtractor(playerUrl, mainUrl, subtitleCallback, callback)
-        }
-
-        return true
-    }
 
     private fun Element.toSearchResponse(): SearchResponse {
         /////// Recherche et accueil
