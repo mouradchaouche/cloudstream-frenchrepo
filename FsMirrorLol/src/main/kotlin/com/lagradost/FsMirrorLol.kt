@@ -208,7 +208,7 @@ override suspend fun load(url: String): LoadResponse {
         }
     }
 
-   override suspend fun loadLinks(
+ override suspend fun loadLinks(
     data: String,
     isCasting: Boolean,
     subtitleCallback: (SubtitleFile) -> Unit,
@@ -216,20 +216,60 @@ override suspend fun load(url: String): LoadResponse {
 ): Boolean {
 
     val parsedData = tryParseJson<loadLinkData>(data) ?: return false
-    val url = fixUrl(parsedData.embedUrl)
-
-    // ⚡ Cas séries ET films : on envoie DIRECTEMENT à l'extractor
-    loadExtractor(
-        url,
-        mainUrl,
-        subtitleCallback,
-        callback
-    )
-
-    return true
+    
+    // Pour les SÉRIES : parsedData.embedUrl est déjà l'URL directe du lien vidéo
+    if (parsedData.episodenumber != null) {
+        // C'est une série, on a déjà l'URL directe
+        loadExtractor(
+            fixUrl(parsedData.embedUrl),
+            mainUrl,
+            subtitleCallback,
+            callback
+        )
+        return true
+    } else {
+        // C'est un FILM : il faut extraire les liens depuis la page
+        val url = fixUrl(parsedData.embedUrl)
+        val soup = app.get(url).document
+        val filmData = soup.selectFirst("div#film-data") ?: return false
+        
+        val links = mutableListOf<String>()
+        val isVostfr = parsedData.isVostFr == true
+        
+        filmData.attributes().asList().forEach { attr ->
+            if (!attr.key.startsWith("data-") || attr.value.isBlank()) return@forEach
+            
+            val key = attr.key.removePrefix("data-")
+            
+            // Ignorer les attributs qui ne sont pas des liens de streaming
+            if (key in listOf("newsid", "title", "fulllink", "affiche", "affiche2", 
+                             "trailer", "tagz", "actors", "ispremium", "vostfr")) {
+                return@forEach
+            }
+            
+            // Filtrer selon VF/VOSTFR
+            val shouldInclude = if (isVostfr) {
+                key.contains("vostfr", ignoreCase = true)
+            } else {
+                !key.contains("vostfr", ignoreCase = true)
+            }
+            
+            if (shouldInclude && attr.value.startsWith("http")) {
+                links.add(attr.value)
+            }
+        }
+        
+        if (links.isNotEmpty()) {
+            links.distinct().forEach { link ->
+                loadExtractor(fixUrl(link), mainUrl, subtitleCallback, callback)
+            }
+            return true
+        }
+        
+        // Fallback pour les films
+        return loadExtractor(url, mainUrl, subtitleCallback, callback)
+    }
 }
-
-
 
 
     private fun Element.toSearchResponse(): SearchResponse {
