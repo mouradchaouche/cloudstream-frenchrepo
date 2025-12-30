@@ -23,4 +23,11 @@ cloudstream {
     )
 
     iconUrl = "https://www.google.com/s2/favicons?domain=wiflix.travel&sz=%size%"
+    
+}
+
+dependencies {
+    // Bibliothèques JSON nécessaires pour JsonProperty / Jackson
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.0")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.0")
 }
