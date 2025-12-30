@@ -6,9 +6,9 @@ FrenchAnime
 Wiflix
 French Stream = fsmirrorlol
 
-FsMirrorLol : Working / Marche 100%
-Wiflix : Uses Old variables of Cloudstream Works with search only does not display home page
-French Anime : I don't know if it still works.
+- FsMirrorLol : Working / Marche 100%
+- Wiflix : Working / Marche 100% / Problem with some extractors / Probleme avec certains extracteurs
+- French Anime : I don't know if it still works.
 
 Including / Incluant
 - French Stream from ycngmn/CuxPlug repo
