@@ -3,15 +3,18 @@ package com.lagradost
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
+import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
-import org.jsoup.nodes.Element
-import org.jsoup.select.Elements
-import kotlin.collections.ArrayList
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.loadExtractor
+import com.lagradost.cloudstream3.extractors.*
 import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.nicehttp.NiceResponse
-import com.lagradost.cloudstream3.extractors.*
+import org.jsoup.nodes.Element
+import org.jsoup.select.Elements
 
+import kotlin.collections.ArrayList
 import java.util.*
 
 class WiflixProvider : MainAPI() {
@@ -24,152 +27,165 @@ class WiflixProvider : MainAPI() {
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
     private val interceptor = CloudflareKiller()
 
+    suspend fun avoidCloudflare(url: String): NiceResponse {
+        return if (!app.get(url).isSuccessful) {
+            app.get(url, interceptor = interceptor)
+        } else {
+            app.get(url)
+        }
+    }
+
     override suspend fun search(query: String): List<SearchResponse> {
         val link = "$mainUrl/index.php?do=search&subaction=search&search_start=0&full_search=1&result_from=1&story=$query&titleonly=3&searchuser=&replyless=0&replylimit=0&searchdate=0&beforeafter=after&sortby=date&resorder=desc&showposts=0&catlist%5B%5D=0"
         val document = app.post(link).document
         val results = document.select("div#dle-content > div.clearfix")
 
-        val allresultshome = results.mapNotNull { article ->
+        return results.mapNotNull { article ->
             article.toSearchResponse()
         }
-        return allresultshome
     }
 
-    data class EpisodeData(
-        @JsonProperty("url") val url: String,
-        @JsonProperty("episodeNumber") val episodeNumber: String,
+    // Nouvelle structure de données pour les liens
+    data class LoadLinkData(
+        val embedUrl: String,
+        val isVostFr: Boolean? = null,
+        val episodenumber: Int? = null
     )
 
-    private fun Elements.takeEpisode(
+    // Fonction pour créer les épisodes avec les nouvelles variables
+    private fun Elements.takeEpisodeFromBloc(
         url: String,
-        posterUrl: String?,
-        duborSub: String?
-    ): ArrayList<Episode> {
-
-        val episodes = ArrayList<Episode>()
-        this.select("ul.eplist > li").forEach {
-
-            val strEpisodeN =
-                Regex("""pisode[\s]+(\d+)""").find(it.text())?.groupValues?.get(1).toString()
-            val link =
-                EpisodeData(
-                    url,
-                    strEpisodeN,
+        isVostFr: Boolean
+    ): List<Episode> {
+        return this.select("ul.eplist > li").mapNotNull { li ->
+            val epNum = Regex("""pisode[\s]+(\d+)""").find(li.text())?.groupValues?.get(1)?.toIntOrNull()
+                ?: return@mapNotNull null
+            
+            val title = if (isVostFr) "Episode $epNum Vostfr 📜 🇬🇧" 
+                       else "Episode $epNum VF 🇫🇷"
+            
+            newEpisode(
+                LoadLinkData(
+                    embedUrl = fixUrl(url),
+                    isVostFr = isVostFr,
+                    episodenumber = epNum
                 ).toJson()
-
-            episodes.add(
-                Episode(
-                    link + if (duborSub == "vostfr") {
-                        "*$duborSub*"
-                    } else {
-                        "VF"
-                    },
-                    name = "Episode en " + duborSub,
-                    episode = strEpisodeN.toIntOrNull(),
-                    posterUrl = posterUrl
-                )
-            )
+            ) {
+                this.name = title
+                this.episode = epNum
+            }
         }
-
-        return episodes
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = avoidCloudflare(url).document
-        var subEpisodes = ArrayList<Episode>()
-        var dubEpisodes = ArrayList<Episode>()
-        val mediaType: TvType
-        val episodeFrfound = document.select("div.blocfr")
-        val episodeVostfrfound = document.select("div.blocvostfr")
+        val soup = avoidCloudflare(url).document
+        var subEpisodes = listOf<Episode>()
+        var dubEpisodes = listOf<Episode>()
+
+        val title = soup.selectFirst("h1[itemprop]")?.text() ?: ""
         
-        val title = document.select("h1[itemprop]").text()
-        val posterUrl = document.select("img#posterimg").attr("src")
+        val poster = soup.selectFirst("img#posterimg")?.attr("src")?.takeIf { it.isNotEmpty() }
+            ?: soup.selectFirst("div.img-box > img")?.attr("src")?.takeIf { it.isNotEmpty() }
+        
+        val episodeFrfound = soup.select("div.blocfr")
+        val episodeVostfrfound = soup.select("div.blocvostfr")
+        
+        val isMovie = episodeFrfound.isEmpty() && episodeVostfrfound.isEmpty()
+
+        // Extraction de l'année
         val yearRegex = Regex("""ate de sortie\: (\d*)""")
-        val year = yearRegex.find(document.text())?.groupValues?.get(1)
+        val year = yearRegex.find(soup.text())?.groupValues?.get(1)?.toIntOrNull()
 
-        val tags = document.select("[itemprop=genre] > a")
-            .map {
-                it.text().replace(Regex("(?i)VF"), "Lang.(Dub\u2335)VF \uD83C\uDDE8\uD83C\uDDF5")
-                .replace(Regex("(?i)vostfr"), "Lang.(Sub\u2335)Vostfr \uD83D\uDCDC \uD83C\uDDEC\uD83C\uDDE7")
+        // Extraction des tags avec formatage
+        val tags = soup.select("[itemprop=genre] > a").mapNotNull { element ->
+            val tagText = element.text()
+            when {
+                tagText.contains("VF", ignoreCase = true) -> "(Dub\u2335)VF \uD83C\uDDE8\uD83C\uDDF5"
+                tagText.contains("VOSTFR", ignoreCase = true) -> "(Sub\u2335)Vostfr \uD83D\uDCDC \uD83C\uDDEC\uD83C\uDDE7"
+                else -> tagText
             }
-        
-        mediaType = TvType.TvSeries
-        if (episodeFrfound.text().lowercase().contains("episode")) {
-            val duborSub = "VF \uD83C\uDDE8\uD83C\uDDF5"
-            dubEpisodes = episodeFrfound.takeEpisode(url, fixUrl(posterUrl), duborSub)
-        }
-        if (episodeVostfrfound.text().lowercase().contains("episode")) {
-            val duborSub = "vostfr \uD83D\uDCDC \uD83C\uDDEC\uD83C\uDDE7"
-            subEpisodes = episodeVostfrfound.takeEpisode(url, fixUrl(posterUrl), duborSub)
-        }
-        
-        var type_rec: TvType
-        val recommendations = document.select("div.clearfixme > div > div").mapNotNull { element ->
-            val recTitle = element.select("a").text() ?: return@mapNotNull null
-            val image = element.select("a >img").attr("src")
-            val recUrl = element.select("a").attr("href")
-            type_rec = TvType.TvSeries
-            if (recUrl.contains("film")) type_rec = TvType.Movie
+        }.toMutableList()
 
-            if (type_rec == TvType.TvSeries) {
-                TvSeriesSearchResponse(
-                    recTitle,
-                    recUrl,
-                    this.name,
-                    TvType.TvSeries,
-                    image?.let { fixUrl(it) },
-                )
-            } else
-                MovieSearchResponse(
-                    recTitle,
-                    recUrl,
-                    this.name,
-                    TvType.Movie,
-                    image?.let { fixUrl(it) },
-                )
-        }
-
-        val comingSoon = url.contains("films-prochainement")
-        if (subEpisodes.isEmpty() && dubEpisodes.isEmpty()) {
-            val fullDescription = document.selectFirst("div.screenshots-full")?.text()
-            val description = fullDescription?.substringAfterLast(":")
+        if (isMovie) {
+            val description = soup.selectFirst("div.screenshots-full")?.text()
+                ?.substringAfterLast(":") ?: ""
+            
+            // Vérifier si c'est VOSTFR
+            val isVostfr = soup.select("span[itemprop*=\"inLanguage\"]")
+                .text().contains("vostfr", ignoreCase = true)
 
             return newMovieLoadResponse(
-                name = title,
-                url = url,
-                type = TvType.Movie,
-                dataUrl = url + if (document.select("span[itemprop*=\"inLanguage\"]").text()
-                        .contains("vostfr", true)
-                ) {
-                    "*vostfr*"
-                } else {
-                    ""
-                }
+                title,
+                url,
+                TvType.Movie,
+                LoadLinkData(url, isVostFr = isVostfr)
             ) {
-                this.posterUrl = fixUrl(posterUrl)
+                this.posterUrl = poster?.let { fixUrl(it) }
                 this.plot = description
-                this.recommendations = recommendations
-                this.year = year?.toIntOrNull()
-                this.comingSoon = comingSoon
+                this.year = year
                 this.tags = tags
+                // Ajouter les recommandations si disponibles
+                val recommendations = getRecommendations(soup)
+                if (recommendations.isNotEmpty()) {
+                    this.recommendations = recommendations
+                }
             }
         } else {
-            val fullDescription = document.selectFirst("span[itemprop=description]")?.text()
-            val description = fullDescription?.substringAfterLast(":")
-            
+            // C'est une série
+            dubEpisodes = episodeFrfound.takeEpisodeFromBloc(url, false)
+            subEpisodes = episodeVostfrfound.takeEpisodeFromBloc(url, true)
+
+            // Ajouter des tags pour indiquer les langues disponibles
+            if (dubEpisodes.isNotEmpty()) {
+                tags.add("(Dub\u2335)VF \uD83C\uDDE8\uD83C\uDDF5")
+            }
+            if (subEpisodes.isNotEmpty()) {
+                tags.add("(Sub\u2335)Vostfr \uD83D\uDCDC \uD83C\uDDEC\uD83C\uDDE7")
+            }
+
+            val description = soup.selectFirst("span[itemprop=description]")?.text()
+                ?.substringAfterLast(":") ?: ""
+
             return newAnimeLoadResponse(
                 title,
                 url,
-                mediaType,
+                TvType.TvSeries
             ) {
-                this.posterUrl = fixUrl(posterUrl)
+                this.posterUrl = poster?.let { fixUrl(it) }
                 this.plot = description
-                this.recommendations = recommendations
-                this.year = year?.toIntOrNull()
-                this.comingSoon = comingSoon
+                this.year = year
                 this.tags = tags
-                if (subEpisodes.isNotEmpty()) addEpisodes(DubStatus.Subbed, subEpisodes)
+                // Ajouter les recommandations si disponibles
+                val recommendations = getRecommendations(soup)
+                if (recommendations.isNotEmpty()) {
+                    this.recommendations = recommendations
+                }
+                
                 if (dubEpisodes.isNotEmpty()) addEpisodes(DubStatus.Dubbed, dubEpisodes)
+                if (subEpisodes.isNotEmpty()) addEpisodes(DubStatus.Subbed, subEpisodes)
+            }
+        }
+    }
+
+    // Fonction pour extraire les recommandations
+    private fun getRecommendations(soup: org.jsoup.nodes.Document): List<SearchResponse> {
+        return soup.select("div.clearfixme > div > div").mapNotNull { element ->
+            val recTitle = element.select("a").text().takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val image = element.select("a > img").attr("src").takeIf { it.isNotEmpty() }
+            val recUrl = element.select("a").attr("href").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            
+            val isMovie = recUrl.contains("film")
+            val type = if (isMovie) TvType.Movie else TvType.TvSeries
+            
+            if (isMovie) {
+                // CORRECTION : Utiliser newMovieSearchResponse au lieu du constructeur
+                newMovieSearchResponse(recTitle, recUrl, TvType.Movie) {
+                    this.posterUrl = image?.let { fixUrl(it) }
+                }
+            } else {
+                newAnimeSearchResponse(recTitle, recUrl, TvType.TvSeries) {
+                    this.posterUrl = image?.let { fixUrl(it) }
+                }
             }
         }
     }
@@ -180,160 +196,117 @@ class WiflixProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        var isvostfr = false
-        val trueUrl: String
-        val parsedInfo = if (data.takeLast(8) == "*vostfr*") {
-            isvostfr = true
-            trueUrl = data.dropLast(8)
-            tryParseJson<EpisodeData>(data.dropLast(8))
-        } else {
-            trueUrl = data
-            tryParseJson<EpisodeData>(data)
-        }
-
-        val url = parsedInfo?.url ?: trueUrl
-        val numeroEpisode = parsedInfo?.episodeNumber
-
+        val parsedData = tryParseJson<LoadLinkData>(data) ?: return false
+        val url = fixUrl(parsedData.embedUrl)
+        
         val document = avoidCloudflare(url).document
-
-        var flag = "\uD83C\uDDE8\uD83C\uDDF5"
-        var cssCodeForPlayer: String
-
-        if (numeroEpisode != null) {
-            cssCodeForPlayer = if (!isvostfr) {
-                "div.ep${numeroEpisode}vf > a"
+        
+        // Déterminer le sélecteur CSS selon le type (film ou série)
+        val cssSelector = if (parsedData.episodenumber != null) {
+            // Série
+            val epNum = parsedData.episodenumber
+            if (parsedData.isVostFr == true) {
+                "div.ep${epNum}vs > a"
             } else {
-                "div.ep${numeroEpisode}vs > a"
+                "div.ep${epNum}vf > a"
             }
         } else {
-            cssCodeForPlayer = "div.tabs-sel.linkstab > div.tabs-sel.linkstab > a"
+            // Film
+            "div.tabs-sel.linkstab > div.tabs-sel.linkstab > a"
         }
         
-        if (cssCodeForPlayer.contains("vs") || isvostfr) {
-            flag = " \uD83D\uDCDC \uD83C\uDDEC\uD83C\uDDE7"
-        }
-
-        document.select(cssCodeForPlayer).forEach { player ->
+        // Extraire les liens vidéo
+        val links = mutableListOf<String>()
+        
+        document.select(cssSelector).forEach { player ->
             var playerUrl = player.attr("onclick")
                 .substringAfter("loadVideo(&#39;")
                 .substringBefore("&#39;")
                 .substringAfter("loadVideo('")
                 .substringBefore("')")
+                .takeIf { it.isNotBlank() }
             
-            if (!playerUrl.isBlank()) {
+            if (playerUrl != null) {
+                // Correction pour doodstream
                 if (playerUrl.contains("dood") || playerUrl.contains("d00")) {
                     playerUrl = playerUrl.replace("doodstream.com", "dood.wf")
                 }
-                loadExtractor(
-                    httpsify(playerUrl),
-                    playerUrl,
-                    subtitleCallback
-                ) { link ->
-                    callback.invoke(
-                        ExtractorLink(
-                            link.source,
-                            link.name + flag,
-                            link.url,
-                            link.referer,
-                            getQualityFromName("HD"),
-                            link.isM3u8,
-                            link.headers,
-                            link.extractorData
-                        )
-                    )
-                }
-            } else {
-                cssCodeForPlayer = "div.tabs-sel.linkstab > div.tabs-sel.linkstab > a"
-                document.select(cssCodeForPlayer).forEach { player2 ->
-                    var playerUrl2 = player2.attr("onclick")
-                        .substringAfter("loadVideo(&#39;")
-                        .substringBefore("&#39;")
-                        .substringAfter("loadVideo('")
-                        .substringBefore("')")
-                    
-                    if (!playerUrl2.isBlank()) {
-                        if (playerUrl2.contains("dood") || playerUrl2.contains("d00")) {
-                            playerUrl2 = playerUrl2.replace("doodstream.com", "dood.wf")
-                        }
-                        loadExtractor(
-                            httpsify(playerUrl2),
-                            playerUrl2,
-                            subtitleCallback
-                        ) { link ->
-                            callback.invoke(
-                                ExtractorLink(
-                                    link.source,
-                                    link.name + flag,
-                                    link.url,
-                                    link.referer,
-                                    getQualityFromName("HD"),
-                                    link.isM3u8,
-                                    link.headers,
-                                    link.extractorData
-                                )
-                            )
-                        }
+                links.add(playerUrl)
+            }
+        }
+        
+        // Si pas de liens trouvés avec le premier sélecteur, essayer le fallback pour les films
+        if (links.isEmpty() && parsedData.episodenumber == null) {
+            document.select("div.tabs-sel.linkstab > div.tabs-sel.linkstab > a").forEach { player ->
+                var playerUrl = player.attr("onclick")
+                    .substringAfter("loadVideo(&#39;")
+                    .substringBefore("&#39;")
+                    .substringAfter("loadVideo('")
+                    .substringBefore("')")
+                    .takeIf { it.isNotBlank() }
+                
+                if (playerUrl != null) {
+                    if (playerUrl.contains("dood") || playerUrl.contains("d00")) {
+                        playerUrl = playerUrl.replace("doodstream.com", "dood.wf")
                     }
+                    links.add(playerUrl)
                 }
             }
         }
-        return true
+        
+        // Charger chaque lien via les extractors
+        if (links.isNotEmpty()) {
+            links.distinct().forEach { link ->
+                loadExtractor(httpsify(link), mainUrl, subtitleCallback, callback)
+            }
+            return true
+        }
+        
+        return false
     }
 
     private fun Element.toSearchResponse(): SearchResponse {
-        val posterUrl = fixUrl(select("div.img-box > img").attr("src"))
-        val qualityExtracted = select("div.nbloc1-2 >span").text()
+        val posterUrl = select("div.img-box > img").attr("src").takeIf { it.isNotEmpty() }
+        val qualityExtracted = select("div.nbloc1-2 > span").text()
         val type = select("div.nbloc3").text().lowercase()
         val titlefirst = select("a.nowrap").text()
         val seasonAndLanguage = select("span.block-sai").text()
-        val title = "$titlefirst\n$seasonAndLanguage"
-        val link = select("a.nowrap").attr("href")
+        val title = if (seasonAndLanguage.isNotEmpty()) "$titlefirst\n$seasonAndLanguage" else titlefirst
+        val link = select("a.nowrap").attr("href").takeIf { it.isNotEmpty() } ?: return newMovieSearchResponse("", "", TvType.Movie) {}
         
         val quality = getQualityFromString(
-            when (!qualityExtracted.isNullOrBlank()) {
-                qualityExtracted.contains("HDLight") -> "HD"
-                qualityExtracted.contains("Bdrip") -> "BlueRay"
-                qualityExtracted.contains("DVD") -> "DVD"
-                qualityExtracted.contains("CAM") -> "Cam"
+            when {
+                qualityExtracted.contains("HDLight", ignoreCase = true) -> "HD"
+                qualityExtracted.contains("Bdrip", ignoreCase = true) -> "BlueRay"
+                qualityExtracted.contains("DVD", ignoreCase = true) -> "DVD"
+                qualityExtracted.contains("CAM", ignoreCase = true) -> "Cam"
                 else -> null
             }
         )
         
         if (type.contains("film")) {
-            return newAnimeSearchResponse(
-                name = title,
-                url = link,
-                type = TvType.Movie,
-            ) {
-                this.dubStatus = if (select("span.nbloc1").text().contains("vostfr", true)) {
-                    EnumSet.of(DubStatus.Subbed)
-                } else {
-                    EnumSet.of(DubStatus.Dubbed)
-                }
-                this.posterUrl = posterUrl
+            val isVostfr = select("span.nbloc1").text().contains("vostfr", ignoreCase = true)
+            
+            // CORRECTION : Pour les films, on ne peut pas utiliser dubStatus avec newMovieSearchResponse
+            // On utilise addDubStatus seulement pour les séries
+            return newMovieSearchResponse(title, link, TvType.Movie) {
+                this.posterUrl = posterUrl?.let { fixUrl(it) }
                 this.quality = quality
+                // Note: newMovieSearchResponse n'a pas de champ dubStatus
+                // On pourrait ajouter l'info dans le titre ou les tags si nécessaire
             }
         } else {
-            return newAnimeSearchResponse(
-                name = title,
-                url = link,
-                type = TvType.TvSeries,
-            ) {
-                this.posterUrl = posterUrl
+            // C'est une série
+            val episodeText = select("div.block-ep").text()
+            val episodeCount = Regex("""pisode[\s]+(\d+)""").find(episodeText)?.groupValues?.get(1)?.toIntOrNull()
+            val isDub = !select("span.block-sai").text().uppercase().contains("VOSTFR")
+            
+            return newAnimeSearchResponse(title, link, TvType.TvSeries) {
+                this.posterUrl = posterUrl?.let { fixUrl(it) }
                 this.quality = quality
-                addDubStatus(
-                    isDub = !select("span.block-sai").text().uppercase().contains("VOSTFR"),
-                    episodes = Regex("""pisode[\s]+(\d+)""").find(select("div.block-ep").text())?.groupValues?.get(1)?.toIntOrNull()
-                )
+                // CORRECTION : Utiliser addDubStatus pour les séries
+                addDubStatus(isDub = isDub, episodes = episodeCount)
             }
-        }
-    }
-
-    suspend fun avoidCloudflare(url: String): NiceResponse {
-        if (!app.get(url).isSuccessful) {
-            return app.get(url, interceptor = interceptor)
-        } else {
-            return app.get(url)
         }
     }
 
