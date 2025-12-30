@@ -87,25 +87,36 @@ class FsMirrorLol : MainAPI() {
             }
         return allresultshome
     }
-data class loadLinkData(
-    val embedUrl: String,
-    val isVostFr: Boolean? = null,
-    val episodenumber: Int? = null
-)
+	
+	///// STRUCTURE JSON des liens VIDEOS
+		data class loadLinkData(
+			val embedUrl: String,
+			val isVostFr: Boolean? = null,
+			val episodenumber: Int? = null,
+			val allLinks: List<String> = emptyList()  // ← Ajouter cette ligne pour stocker tous les liens
+		)
 
 private fun Elements.takeEpisodeFromDivs(isVostFr: Boolean): List<Episode> {
     return this.mapNotNull { div ->
         val epNum = div.attr("data-ep").toIntOrNull() ?: return@mapNotNull null
         if (epNum <= 0) return@mapNotNull null
 
-        // 🔥 On prend TOUS les data-* valides
-        val embedUrl = div.attributes()
+        // 🔥 Prendre TOUS les liens, pas juste le premier
+        val allLinks = div.attributes()
             .asList()
-            .firstOrNull {
+            .filter {
                 it.key.startsWith("data-")
                         && it.key != "data-ep"
                         && it.value.startsWith("http")
-            }?.value ?: return@mapNotNull null
+                        && it.value.isNotBlank()
+            }
+            .map { fixUrl(it.value) }
+            .distinct()  // Éviter les doublons
+
+        if (allLinks.isEmpty()) return@mapNotNull null
+
+        // Prendre le premier comme lien principal (pour compatibilité)
+        val firstLink = allLinks.first()
 
         val title =
             if (isVostFr) "Episode $epNum Vostfr 📜 🇬🇧"
@@ -113,9 +124,10 @@ private fun Elements.takeEpisodeFromDivs(isVostFr: Boolean): List<Episode> {
 
         newEpisode(
             loadLinkData(
-                embedUrl = fixUrl(embedUrl),
+                embedUrl = firstLink,  // Premier lien pour compatibilité
                 isVostFr = isVostFr,
-                episodenumber = epNum
+                episodenumber = epNum,
+                allLinks = allLinks  // Tous les liens
             ).toJson()
         ) {
             this.name = title
@@ -123,6 +135,7 @@ private fun Elements.takeEpisodeFromDivs(isVostFr: Boolean): List<Episode> {
         }
     }
 }
+
 
 
 //tagsListperso.add("(Dub\u2335)VF \uD83C\uDDE8\uD83C\uDDF5")
@@ -217,18 +230,34 @@ override suspend fun load(url: String): LoadResponse {
 
     val parsedData = tryParseJson<loadLinkData>(data) ?: return false
     
-    // Pour les SÉRIES : parsedData.embedUrl est déjà l'URL directe du lien vidéo
+	
     if (parsedData.episodenumber != null) {
-        // C'est une série, on a déjà l'URL directe
-        loadExtractor(
-            fixUrl(parsedData.embedUrl),
-            mainUrl,
-            subtitleCallback,
-            callback
-        )
-        return true
+	
+		// =======================
+		// 🎬 SÉRIES
+		// =======================
+
+        // Utiliser TOUS les liens stockés au lieu d'un seul
+        if (parsedData.allLinks.isNotEmpty()) {
+            var success = false
+            parsedData.allLinks.forEach { link ->
+                if (loadExtractor(link, mainUrl, subtitleCallback, callback)) {
+                    success = true
+                }
+            }
+            return success
+        } else {
+            // Fallback : utiliser le lien principal (ancien comportement)
+            return loadExtractor(fixUrl(parsedData.embedUrl), mainUrl, subtitleCallback, callback)
+        }
+		
     } else {
-        // C'est un FILM : il faut extraire les liens depuis la page
+        
+		
+		// =======================
+		// 🎥 FILMS 
+		// =======================
+		
         val url = fixUrl(parsedData.embedUrl)
         val soup = app.get(url).document
         val filmData = soup.selectFirst("div#film-data") ?: return false
