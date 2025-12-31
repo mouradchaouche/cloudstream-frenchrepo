@@ -61,7 +61,28 @@
         "url": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/FsMirrorLol.cs3",
         "name": "FsMirrorLol"
     },
-    
+
+       {
+        "iconUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/img/1jour.png",
+        "apiVersion": 1,
+        "repositoryUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/",
+        "fileSize": 21582,
+        "status": 1,
+        "language": "fr",
+        "authors": [
+            "AMSC"
+        ],
+        "tvTypes": [
+            "TvSeries",
+            "Movie"
+        ],
+        "version": 5,
+        "internalName": "1Jour1Film",
+        "description": "1jour1Film un site \u00e9",
+        "url": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/JourFilm.cs3",
+        "name": "1Jour1Film"
+    },
+
     {
         "iconUrl": "https://i.ibb.co/ygGWcC0/oha-letter-logo-design-on-black-background-oha-creative-initials-letter-logo-concept-oha-letter-desi.jpg",
         "apiVersion": 1,
