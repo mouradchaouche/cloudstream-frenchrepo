@@ -22,3 +22,22 @@ Repo Link :
 https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/repo.json
 
 cloudstreamrepo://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/repo.json
+
+
+Build one by one with cmd in the same Directory of source : 
+for linux 
+./gradlew FrenchAnime:make 
+or for windows 
+.\gradlew FrenchAnime:make
+
+for linux 
+./gradlew FsMirrorLol:make 
+or for windows 
+.\gradlew FsMirrorLol:make
+
+for linux 
+./gradlew WiflixProvider:make 
+or for windows 
+.\gradlew WiflixProvider:make
+
+
