@@ -2,13 +2,14 @@
 cloudstream french repo
 
 Plugins :
-FrenchAnime 
+French Anime 
 Wiflix
 French Stream = fsmirrorlol
 
 - FsMirrorLol : Working / Marche 100%
+- French Anime :  Working / Marche 100%
 - Wiflix : Working / Marche 100% / Problem with some extractors / Probleme avec certains extracteurs
-- French Anime : I don't know if it still works.
+  up4fun.top et walterprettytheir.com - extracteur non supporté par Cloudstream / Extractor not supported by Cloudstream
 
 Including / Incluant
 - French Stream from ycngmn/CuxPlug repo
