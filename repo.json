@@ -1,9 +1,9 @@
 {
-  "iconUrl": "https://amsc.duckdns.org/cloudstream/repo/img/amsc.jpg",
+  "iconUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/img/amsc.jpg",
   "name": "AMSC French",
   "description": "Updating the Cloudstream French Provider.",
-  "manifestVersion": 1,
+  "manifestVersion": 2,
   "pluginLists": [
-    "https://amsc.duckdns.org/cloudstream/repo/plugins.json"
+    "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/plugins.json"
   ]
 }
