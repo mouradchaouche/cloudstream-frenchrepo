@@ -97,7 +97,7 @@
     "status": 1,
     "authors": ["AMSC"],
     "tvTypes": ["Live"],
-    "version": 1,
+    "version": 2,
     "internalName": "Witv",
     "description": "TV channels from WITV",
     "url": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/Witv.cs3",
