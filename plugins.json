@@ -83,7 +83,7 @@
     "language": "fr",
     "authors": ["AMSC"],
     "tvTypes": ["TvSeries", "Movie"],
-    "version": 2,
+    "version": 4,
     "internalName": "Frembed",
     "description": "Frembed Streaming",
     "url": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/Frembed.cs3",
