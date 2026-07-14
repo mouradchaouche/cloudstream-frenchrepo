@@ -83,11 +83,11 @@
     "language": "fr",
     "authors": ["AMSC"],
     "tvTypes": ["TvSeries", "Movie"],
-    "version": 1,
+    "version": 2,
     "internalName": "Frembed",
     "description": "Frembed Streaming",
     "url": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/Frembed.cs3",
-    "name": "❌ Frembed FR"
+    "name": "✔️ Frembed FR"
   },
   {
     "iconUrl": "https://raw.githubusercontent.com/mouradchaouche/cloudstream-frenchrepo/main/Build/img/witv.png",
